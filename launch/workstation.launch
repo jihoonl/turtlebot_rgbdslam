@@ -1,0 +1,22 @@
+<!-- Remote Workstation -->
+<launch>
+
+  <!-- It maps with outgoing data at robot.launch -->
+  <arg name="in_depth"       default="keyframes/depth/compressedDepth"/>
+  <arg name="in_rgb"         default="keyframes/rgb/compressed"/>
+  <arg name="in_camera_info" default="keyframes/camera_info"/>
+
+
+  <include file="$(find turtlebot_rgbdslam)/launch/keyframe_mapper.launch">
+    <!-- incomming data from robot -->
+    <arg name="in_depth"        value="$(arg in_depth)"/>
+    <arg name="in_rgb"          value="$(arg in_rgb)"/>
+    <arg name="in_camera_info"  value="$(arg in_camera_info)"/>
+  </include>
+<!--
+  <include file="$(arg turtlebot_rgbdslam)/launch/octomap_server.launch">
+  </include>
+  <include file="$(arg turtlebot_rgbdslam)/launch/rviz.launch"/>
+  -->
+
+</launch>

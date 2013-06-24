@@ -1,0 +1,16 @@
+<package>
+  <description brief="turtlebot_rgbdslam">
+
+     turtlebot_rgbdslam
+
+  </description>
+  <author>Jihoon</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/turtlebot_rgbdslam</url>
+  <depend package="roscpp"/>
+  <depend package="ccny_rgbd"/>
+
+</package>
+
+

@@ -1,0 +1,27 @@
+<!--
+
+  Keyframe Sender. Forked from IDSCETHZurich/rapyuta-mapping
+
+  -->
+
+<launch>
+  <arg name="in_depth"        defaule="rgbd/depth"/>
+  <arg name="in_rgb"          defaule="rgbd/rgb"/>
+  <arg name="in_camera_info"  defaule="rgbd/info"/>
+
+  <arg name="out_depth"       defaule="rgbd/depth"/>
+  <arg name="out_rgb"         defaule="rgbd/rgb"/>
+  <arg name="out_camera_info" defaule="rgbd/info"/>
+
+  <node pkg="ccny_rgbd" type="keyframe_sendoer" name="keyframe_sender">
+    <!-- Incomming -->
+    <remap from="/rgbd/depth" to="$(arg in_depth)"/>
+    <remap from="/rgbd/rgb" to="$(arg in_rgb)"/>
+    <remap from="/rgbd/info" to="$(arg in_camera_info)"/>
+
+    <!-- Outgoing -->
+    <remap from="keyframes/depth" to="$(arg out_depth)"/>
+    <remap from="keyframes/rgb" to="$(arg out_rgb)"/>
+    <remap from="keyframes/info" to="$(arg out_camera_info)"/>
+  </node>
+</launch>

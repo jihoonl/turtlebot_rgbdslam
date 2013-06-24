@@ -1,0 +1,18 @@
+<launch>
+
+  <!-- Uses ccny custom version of openni launcher -->
+  <include file="$(find turtlebot_rgbdslam)/launch/openni.launch"/>
+
+  <!-- Keyframe Sender --> 
+  <include file="$(find turtlebot_rgbdslam)/launch/keyframe_sender.launch">
+    <!-- incomming -->
+    <arg name="in_depth"        defaule="rgbd/depth"/>
+    <arg name="in_rgb"          defaule="rgbd/rgb"/>
+    <arg name="in_camera_info"  defaule="rgbd/info"/>
+  
+    <!-- outgoing data -->
+    <arg name="out_depth"       defaule="keyframes/depth"/>
+    <arg name="out_rgb"         defaule="keyframes/rgb"/>
+    <arg name="out_camera_info" defaule="keyframes/camera_info"/>
+  </include>
+</launch>

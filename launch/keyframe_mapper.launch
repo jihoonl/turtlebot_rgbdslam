@@ -1,0 +1,24 @@
+<launch>
+  <arg name="in_depth" default="rgbd/depth"/>
+  <arg name="in_rgb" default="rgbd/rgb"/>
+  <arg name="in_camera_info" default="rgbd/info"/>
+
+  <node pkg="ccny_rgbd" type="keyframe_online_mapper_node" name="keyframe_online_mapper_node" output="screen">
+  <!-- 
+    NOTE: if using data from OpenNI driver directly, (without 
+    ccny_rgbd/rgbd_image_proc"), then add the following remappings. 
+    Also add these to visual_odometry in visual_odometry.launch.
+  -->
+    <remap from="rgbd/depth/compressedDepth" to="$(arg in_depth)"/>
+    <remap from="rgbd/rgb/compressed"   to="$(arg in_rgb)"/>
+    <remap from="rgbd/info"  to="$(arg in_camera_info)"/>
+
+       
+    <param name="kf_dist_eps"  value="0.25"/> <!-- 25 cm -->
+    <param name="kf_angle_eps" value="0.35"/> <!-- 20 deg -->
+    <param name="full_map_res" value="0.01"/>
+    <param name="max_range" value="7.0"/>
+    <param name="max_stdev" value="0.05"/>
+  </node>
+
+</launch>
