@@ -1,11 +1,13 @@
 /**
   keyframe_livemapper.cpp 
-  @ GNU Licensed. Please refer LICENCE file in the package
+  @ GPL Licensed. Please refer LICENCE file in the package
  **/
+
+#include "turtlebot_rgbdslam/keyframe_livemapper.h"
 
 namespace turtlebot_rgbdslam {
   KeyframeLiveMapper::KeyframeLiveMapper(const ros::NodeHandle& nh,const ros::NodeHandle& nh_private)
-    : _n(nh), _priv_n(nh_private), rgbd_frame_index_(0)
+    : _n(nh), _priv_n(nh_private), _rgbd_frame_index(0)
   {
     initParams();
     initGraphDetector();
@@ -23,7 +25,11 @@ namespace turtlebot_rgbdslam {
   void KeyframeLiveMapper::initParams()
   {
     _priv_n.param<bool>("verbose",_verbose,false);
-    _priv_n.param<unsigned int>("sub_queue_size",_sub_queue_size,5);
+    _priv_n.param<int>("sub_queue_size",_sub_queue_size,5);
+
+    // transport hints
+    _priv_n.param<std::string>("rgb_transporthint",_rgb_transporthint,"compressed");
+    _priv_n.param<std::string>("depth_transporthint",_depth_transporthint,"compressedDepth");
 
     // frame 
     _priv_n.param<std::string>("fixed_frame",_fixed_frame,"map");
@@ -41,30 +47,27 @@ namespace turtlebot_rgbdslam {
     // boundary
     _priv_n.param<double>("max_range",_max_range,5.5);
     _priv_n.param<double>("max_stddev",_max_stddev,0.03);
-    _priv_n.param<double>("max_map_z",_max_map_z,std::number_limits<double>::infinity());
+    _priv_n.param<double>("max_map_z",_max_map_z,std::numeric_limits<double>::infinity());
 
     // configure graph detection 
-      
-    bool graph_matcher_use_desc_ratio_test = true;
-      
-    _priv_n.param<unsigned int>("graph/n_keypoints",_graph_n_keypoints,500);
-    _priv_n.param<unsigned int>("graph/n_candidates",_graph_n_candidates,15);
-    _priv_n.param<unsigned int>("graph/k_nearest_neighbors",_graph_k_nearest_neighbors,4);
+    _priv_n.param<int>("graph/n_keypoints",_graph_n_keypoints,500);
+    _priv_n.param<int>("graph/n_candidates",_graph_n_candidates,15);
+    _priv_n.param<int>("graph/k_nearest_neighbors",_graph_k_nearest_neighbors,4);
     _priv_n.param<bool>("graph_matcher_use_desc_ratio_test",_graph_matcher_use_desc_ratio_test,true);
     _priv_n.param<std::string>("graph_output_path",_graph_output_path,"~/mapping_debug");
   }
 
   void KeyframeLiveMapper::initGraphDetector() 
   {
-    graph_detector_.setNKeypoints(_graph_n_keypoints);
-    graph_detector_.setNCandidates(_graph_n_candidates);   
-    graph_detector_.setKNearestNeighbors(_graph_k_nearest_neighbors);    
-    graph_detector_.setMatcherUseDescRatioTest(_graph_matcher_use_desc_ratio_test);
+    _graph_detector.setNKeypoints(_graph_n_keypoints);
+    _graph_detector.setNCandidates(_graph_n_candidates);   
+    _graph_detector.setKNearestNeighbors(_graph_k_nearest_neighbors);    
+    _graph_detector.setMatcherUseDescRatioTest(_graph_matcher_use_desc_ratio_test);
     
-    graph_detector_.setSACReestimateTf(false);
-    graph_detector_.setSACSaveResults(true);
-    graph_detector_.setVerbose(_verbose);
-    graph_detector_.setOutputPath(_graph_output_path);
+    _graph_detector.setSACReestimateTf(false);
+    _graph_detector.setSACSaveResults(true);
+    _graph_detector.setVerbose(_verbose);
+    _graph_detector.setOutputPath(_graph_output_path);
   }
 
   void KeyframeLiveMapper::setPublishers()
@@ -73,36 +76,33 @@ namespace turtlebot_rgbdslam {
 
   void KeyframeLiveMapper::setSubscribers()
   {
-    /*
-    ImageTransport rgb_it(nh_);
-    ImageTransport depth_it(nh_);
+    image_transport::ImageTransport rgb_it(_n);
+    image_transport::ImageTransport depth_it(_n);
 
-    image_transport::TransportHints rgb_th("compressed");
-    image_transport::TransportHints depth_th("compressedDepth");
+    image_transport::TransportHints rgb_th(_rgb_transporthint);
+    image_transport::TransportHints depth_th(_depth_transporthint);
 
 
-    sub_rgb_.subscribe(rgb_it,     "/rgbd/rgb",   queue_size_, rgb_th);
-    sub_depth_.subscribe(depth_it, "/rgbd/depth", queue_size_, depth_th);
-    sub_info_.subscribe(nh_,       "/rgbd/info",  queue_size_);
+    _sub_rgb.subscribe   (rgb_it,     "rgbd/rgb",   _sub_queue_size, rgb_th);
+    _sub_depth.subscribe (depth_it,   "rgbd/depth", _sub_queue_size, depth_th);
+    _sub_camerainfo.subscribe  (_n,         "rgbd/info",  _sub_queue_size);
 
     // Synchronize inputs.
-    sync_.reset(new RGBDSynchronizer3(RGBDSyncPolicy3(queue_size_), sub_rgb_, sub_depth_, sub_info_));
+    _sync.reset(new RGBDSynchronizer3(RGBDSyncPolicy3(_sub_queue_size), _sub_rgb, _sub_depth, _sub_camerainfo));
      
-    sync_->registerCallback(boost::bind(&KeyframeMapper::RGBDCallback, this, _1, _2, _3));  
-    */
+    _sync->registerCallback(boost::bind(&KeyframeLiveMapper::processRGBDMsg, this, _1, _2, _3));  
   }
 
-  void KeyframeMapper::RGBDCallback(const ImageMsg::ConstPtr& rgb_msg, const ImageMsg::ConstPtr& depth_msg, const CameraInfoMsg::ConstPtr& info_msg)
+  void KeyframeLiveMapper::processRGBDMsg(const sensor_msgs::Image::ConstPtr& rgb_msg, const sensor_msgs::Image::ConstPtr& depth_msg, const sensor_msgs::CameraInfo::ConstPtr& info_msg)
   {
-    /*
     tf::StampedTransform transform;
 
     const ros::Time& time = rgb_msg->header.stamp;
     bool result;
 
     try {
-      tf_listener_.waitForTransform(fixed_frame_, rgb->msg->header.frame_id, time, ros::Duration(0.1));
-      tf_listener_.lookupTransform(fixed_frame_,rgb_msg->header.frame_id, time, transform);
+      _tf_listener.waitForTransform(_fixed_frame, rgb_msg->header.frame_id, time, ros::Duration(0.1));
+      _tf_listener.lookupTransform(_fixed_frame,rgb_msg->header.frame_id, time, transform);
     }
     catch(...)
     {
@@ -112,11 +112,12 @@ namespace turtlebot_rgbdslam {
 
     // create a new frame and increment the counter
     rgbdtools::RGBDFrame frame;
-    AffineTransform pose;
+    Eigen::Affine3f pose;
 
 
     // create RGBD data from ROS msgs
-    createRGBDFrameFromROSMessages(rgb_msg,depth_msg, info_msg, frame);
+  //  createRGBDFrameFromROSMessages(rgb_msg,depth_msg, info_msg, frame);
+    /*
     frame.index = rgbd_frame_index_;
     rgbd_frame_index_++;
 
@@ -131,11 +132,10 @@ namespace turtlebot_rgbdslam {
     //
   //  if(result) {
   //    publishKeyframeData(keyframes_.size() - 1);
-  //  }
-*/
+  //  }*/
   }
 
-  bool KeyframeLiveMapper::processFrame(const rgbdtools::RGBDFrame& frame, const AffineTransform& pose)
+  bool KeyframeLiveMapper::processFrame(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose)
   {
     /*
     bool result;      // determine if a new keyframe is needed
@@ -168,9 +168,10 @@ namespace turtlebot_rgbdslam {
       }
     }
 */
+    return false;
   }
 
-  void KeyframeLiveMapper::addKeyframe(const rgbdtools::RGBDFrame& frame, const AffineTransform& pose)
+  void KeyframeLiveMapper::addKeyframe(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose)
   {
     /*
     rgbdtools::RGBDKeyframe keyframe(frame);
@@ -181,4 +182,4 @@ namespace turtlebot_rgbdslam {
   }
 
 
-
+}

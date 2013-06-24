@@ -9,7 +9,12 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/turtlebot_rgbdslam</url>
   <depend package="roscpp"/>
-  <depend package="ccny_rgbd"/>
+  <depend package="lib_rgbdtools"/>
+  <depend package="image_transport"/>
+  <depend package="tf"/>
+  <depend package="pcl"/>
+  <depend package="pcl_ros"/>
+  <rosdep name="octomap" />
 
 </package>
 

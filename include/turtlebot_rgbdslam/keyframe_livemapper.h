@@ -7,9 +7,12 @@
 
 #include <ros/ros.h>
 
+#include<tf/transform_listener.h>
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
 #include <message_filters/subscriber.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 
 #include <rgbdtools/rgbdtools.h>
 
@@ -18,6 +21,8 @@ namespace turtlebot_rgbdslam {
 
     The KeyframeLiveMapper receives RGBD keyframes, optimize graphs, and publishes live octomap
    **/
+   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> RGBDSyncPolicy3;
+   typedef message_filters::Synchronizer<RGBDSyncPolicy3> RGBDSynchronizer3;
 
   class KeyframeLiveMapper {
     public:
@@ -28,12 +33,12 @@ namespace turtlebot_rgbdslam {
       void processRGBDMsg(const sensor_msgs::Image::ConstPtr& rgb_msg,const sensor_msgs::Image::ConstPtr& depth_msg,const sensor_msgs::CameraInfo::ConstPtr& camera_info_msg);
 
       void initParams();
-      void initGraphDetector() 
+      void initGraphDetector(); 
       void setSubscribers();
       void setPublishers();
 
-      bool processFrame(const rgbdtools::RGBDFrame& frame, const AffineTransform& pose);
-      void addKeyframe(const rgbdtools::RGBDFrame& frame, const AffineTransform& pose);
+      bool processFrame(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose);
+      void addKeyframe(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose);
     private:
       ros::NodeHandle _n;
       ros::NodeHandle _priv_n;
@@ -45,13 +50,14 @@ namespace turtlebot_rgbdslam {
       message_filters::Subscriber<sensor_msgs::CameraInfo>  _sub_camerainfo;
 
       rgbdtools::KeyframeGraphDetector                      _graph_detector;
-      rgbdtools::keyframeGraphSolverG2O                     _graph_solver;
+      rgbdtools::KeyframeGraphSolverG2O                     _graph_solver;
       rgbdtools::KeyframeAssociationVector                  _associations;        
 
+      tf::TransformListener _tf_listener;
 
       //// parameters
       bool          _verbose;
-      unsigned int  _sub_queue_size;
+      int  _sub_queue_size;
       std::string   _fixed_frame;
       std::string   _odom_frame;
 
@@ -73,10 +79,14 @@ namespace turtlebot_rgbdslam {
       std::string _depth_transporthint;
 
       // graph configuration
-      unsigned int _graph_n_keypoints;
-      unsigned int _graph_n_candidates;
-      unsigned int _graph_k_nearest_neighbors;
+      int _graph_n_keypoints;
+      int _graph_n_candidates;
+      int _graph_k_nearest_neighbors;
       bool _graph_matcher_use_desc_ratio_test;
       std::string _graph_output_path;
+
+      boost::shared_ptr<RGBDSynchronizer3> _sync;
   };
 }
+
+#endif
