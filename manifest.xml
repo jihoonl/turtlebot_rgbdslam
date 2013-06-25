@@ -12,9 +12,12 @@
   <depend package="lib_rgbdtools"/>
   <depend package="image_transport"/>
   <depend package="tf"/>
+  <depend package="tf2"/>
   <depend package="pcl"/>
   <depend package="pcl_ros"/>
   <depend package="ccny_rgbd"/>
+  <depend package="octomap_msgs"/>
+  <depend package="octomap_ros"/>
   <rosdep name="octomap" />
 
 </package>

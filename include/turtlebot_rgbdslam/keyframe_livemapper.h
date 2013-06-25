@@ -7,7 +7,15 @@
 
 #include <ros/ros.h>
 
-#include<tf/transform_listener.h>
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl_ros/transforms.h>
+#include <pcl/filters/passthrough.h>
+
+
+#include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
 #include <message_filters/subscriber.h>
@@ -17,6 +25,14 @@
 #include <rgbdtools/rgbdtools.h>
 #include <ccny_rgbd/util.h>
 
+#include <octomap_msgs/Octomap.h>
+#include <octomap_msgs/conversions.h>
+
+#include <octomap_ros/conversions.h>
+#include <octomap/octomap.h>
+#include <octomap/OcTree.h>
+#include <octomap/ColorOcTree.h>
+
 namespace turtlebot_rgbdslam {
   /** @brief Builds a 3D map from a series of RGBD keyframes.
 
@@ -24,6 +40,9 @@ namespace turtlebot_rgbdslam {
    **/
    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> RGBDSyncPolicy3;
    typedef message_filters::Synchronizer<RGBDSyncPolicy3> RGBDSynchronizer3;
+
+   typedef pcl::PointXYZRGB PointXYZRGB;
+   typedef pcl::PointCloud<PointXYZRGB> PointCloudXYZRGB;
 
   class KeyframeLiveMapper {
     public:
@@ -35,16 +54,30 @@ namespace turtlebot_rgbdslam {
 
       void initParams();
       void initGraphDetector(); 
+      void initFilter();
       void setSubscribers();
       void setPublishers();
 
       bool processFrame(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose);
       void addKeyframe(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose);
+
+      void publishMapTransform();
+
+      void updateOctomap();
+      double generateAndSolveGraph();
+      void buildColorOctomap(octomap::ColorOcTree& tree);
+        void buildOctoCloud(octomap::Pointcloud& octomap_cloud,const PointCloudXYZRGB& cloud);
+        void insertColor(octomap::ColorOcTree& tree,const PointCloudXYZRGB& cloud,const Eigen::Affine3f pose);
+        void publishOctomap(octomap::ColorOcTree& tree);
+//      octomap::pose6d poseTfToOctomap(tf::Pose pose_tf);
+
     private:
       ros::NodeHandle _n;
       ros::NodeHandle _priv_n;
         
       int _rgbd_frame_index;
+
+      ros::Publisher                                        _pub_octomap;
 
       image_transport::SubscriberFilter                     _sub_rgb;
       image_transport::SubscriberFilter                     _sub_depth;
@@ -54,11 +87,16 @@ namespace turtlebot_rgbdslam {
       rgbdtools::KeyframeGraphSolverG2O                     _graph_solver;
       rgbdtools::KeyframeAssociationVector                  _associations;        
 
-      tf::TransformListener _tf_listener;
+      tf::Transform             _map_to_odom;
+      tf::TransformListener     _tf_listener;
+      tf::TransformBroadcaster  _tf_broadcaster;
+
+      nav_msgs::Path            _path_msg;
+      rgbdtools::KeyframeVector _keyframes;
 
       //// parameters
       bool          _verbose;
-      int  _sub_queue_size;
+      int           _sub_queue_size;
       std::string   _fixed_frame;
       std::string   _odom_frame;
 
@@ -87,6 +125,11 @@ namespace turtlebot_rgbdslam {
       std::string _graph_output_path;
 
       boost::shared_ptr<RGBDSynchronizer3> _sync;
+      boost::thread                       _thread_map_to_odom;
+      boost::thread                       _thread_octomap;
+      bool                                _stop_thread;
+
+      pcl::PassThrough<PointXYZRGB>     _pass;
   };
 }
 
