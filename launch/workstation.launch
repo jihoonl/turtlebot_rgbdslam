@@ -7,7 +7,7 @@
   <arg name="in_camera_info" default="keyframes/camera_info"/>
 
 
-  <include file="$(find turtlebot_rgbdslam)/launch/keyframe_mapper.launch">
+  <include file="$(find turtlebot_rgbdslam)/launch/include/keyframe_livemapper.launch">
     <!-- incomming data from robot -->
     <arg name="in_depth"        value="$(arg in_depth)"/>
     <arg name="in_rgb"          value="$(arg in_rgb)"/>

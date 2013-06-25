@@ -116,23 +116,17 @@ namespace turtlebot_rgbdslam {
 
 
     // create RGBD data from ROS msgs
-  //  createRGBDFrameFromROSMessages(rgb_msg,depth_msg, info_msg, frame);
-    /*
-    frame.index = rgbd_frame_index_;
-    rgbd_frame_index_++;
+    ccny_rgbd::createRGBDFrameFromROSMessages(rgb_msg,depth_msg, info_msg, frame);
+    frame.index = _rgbd_frame_index;
+    _rgbd_frame_index++;
 
     // affine transform from tf msg
-    pose = eigenAffineFromTf(transform);
+    pose = ccny_rgbd::eigenAffineFromTf(transform);
 
     result = processFrame(frame, pose);
     if(result) addKeyframe(frame, pose); 
 
     ROS_INFO("[RGBDSLAM] processing : %s",result?"SUCCESS":"FAILED");
-    // publish debuging data
-    //
-  //  if(result) {
-  //    publishKeyframeData(keyframes_.size() - 1);
-  //  }*/
   }
 
   bool KeyframeLiveMapper::processFrame(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose)

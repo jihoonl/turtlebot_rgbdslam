@@ -1,10 +1,10 @@
 <launch>
 
   <!-- Uses ccny custom version of openni launcher -->
-  <include file="$(find turtlebot_rgbdslam)/launch/openni.launch"/>
+  <include file="$(find turtlebot_rgbdslam)/launch/include/openni.launch"/>
 
   <!-- Keyframe Sender --> 
-  <include file="$(find turtlebot_rgbdslam)/launch/keyframe_sender.launch">
+  <include file="$(find turtlebot_rgbdslam)/launch/include/keyframe_sender.launch">
     <!-- incomming -->
     <arg name="in_depth"        defaule="rgbd/depth"/>
     <arg name="in_rgb"          defaule="rgbd/rgb"/>

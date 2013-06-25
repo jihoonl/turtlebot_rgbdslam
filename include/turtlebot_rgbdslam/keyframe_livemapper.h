@@ -15,6 +15,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <rgbdtools/rgbdtools.h>
+#include <ccny_rgbd/util.h>
 
 namespace turtlebot_rgbdslam {
   /** @brief Builds a 3D map from a series of RGBD keyframes.
