@@ -32,7 +32,7 @@ namespace turtlebot_rgbdslam {
     _priv_n.param<std::string>("depth_transporthint",_depth_transporthint,"compressedDepth");
 
     // frame 
-    _priv_n.param<std::string>("fixed_frame",_fixed_frame,"map");
+    _priv_n.param<std::string>("fixed_frame",_fixed_frame,"odom");
     _priv_n.param<std::string>("odom_frame",_odom_frame,"odom");
 
     // octomap
@@ -85,7 +85,7 @@ namespace turtlebot_rgbdslam {
 
     _sub_rgb.subscribe   (rgb_it,     "rgbd/rgb",   _sub_queue_size, rgb_th);
     _sub_depth.subscribe (depth_it,   "rgbd/depth", _sub_queue_size, depth_th);
-    _sub_camerainfo.subscribe  (_n,         "rgbd/info",  _sub_queue_size);
+    _sub_camerainfo.subscribe  (_n,   "rgbd/info",  _sub_queue_size);
 
     // Synchronize inputs.
     _sync.reset(new RGBDSynchronizer3(RGBDSyncPolicy3(_sub_queue_size), _sub_rgb, _sub_depth, _sub_camerainfo));
@@ -106,7 +106,7 @@ namespace turtlebot_rgbdslam {
     }
     catch(...)
     {
-      ROS_WARN("Caught while waiting for tfs");
+      ROS_ERROR("Tranfrorm between %s and %s not found", _fixed_frame.c_str(), rgb_msg->header.frame_id.c_str());
       return;
     }
 

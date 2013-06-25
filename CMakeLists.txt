@@ -48,12 +48,19 @@ set(G2O_LIBRARIES
 # boost
 rosbuild_add_boost_directories()
 
-rosbuild_add_executable(keyframe_livemapper
-    src/node/keyframe_livemapper_node.cpp
+rosbuild_add_library(keyframe_livemapper
     src/apps/keyframe_livemapper.cpp
 )
 
 target_link_libraries(keyframe_livemapper
     rgbdtools
     ${OpenCV_LIBRARIES}
+)
+
+rosbuild_add_executable(keyframe_livemapper_node
+    src/node/keyframe_livemapper_node.cpp
+)
+
+target_link_libraries(keyframe_livemapper_node
+    keyframe_livemapper
 )
