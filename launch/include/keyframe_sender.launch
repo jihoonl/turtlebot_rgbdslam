@@ -5,13 +5,13 @@
   -->
 
 <launch>
-  <arg name="in_depth"        defaule="rgbd/depth"/>
-  <arg name="in_rgb"          defaule="rgbd/rgb"/>
-  <arg name="in_camera_info"  defaule="rgbd/info"/>
+  <arg name="in_depth"        default="rgbd/depth"/>
+  <arg name="in_rgb"          default="rgbd/rgb"/>
+  <arg name="in_camera_info"  default="rgbd/info"/>
 
-  <arg name="out_depth"       defaule="rgbd/depth"/>
-  <arg name="out_rgb"         defaule="rgbd/rgb"/>
-  <arg name="out_camera_info" defaule="rgbd/info"/>
+  <arg name="out_depth"       default="rgbd/depth"/>
+  <arg name="out_rgb"         default="rgbd/rgb"/>
+  <arg name="out_camera_info" default="rgbd/info"/>
 
   <node pkg="ccny_rgbd" type="keyframe_sendoer" name="keyframe_sender">
     <!-- Incomming -->

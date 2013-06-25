@@ -20,7 +20,7 @@
         output="screen"/>
 
   <!-- Driver nodelet -->      
-  <include file="$(find ccny_openni_launch)/launch/include/device.launch">       
+  <include file="$(find turtlebot_rgbdslam)/launch/include/ccny_openni/device.launch">       
      <arg name="manager_name" value="$(arg manager_name)" />
      <arg name="calib_path"   value="$(arg calib_path)" />
      <arg name="image_mode" value="$(arg image_mode)" />
@@ -28,7 +28,7 @@
   </include>
             
   <!-- RGBD processing -->
-  <include file="$(find ccny_openni_launch)/launch/include/proc.launch">       
+  <include file="$(find turtlebot_rgbdslam)/launch/include/ccny_openni/proc.launch">       
      <arg name="manager_name"  value="$(arg manager_name)" />
      <arg name="calib_path"    value="$(arg calib_path)" />
      <arg name="unwarp"        value="$(arg unwarp)" />
