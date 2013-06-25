@@ -13,7 +13,7 @@
   <arg name="out_rgb"         default="rgbd/rgb"/>
   <arg name="out_camera_info" default="rgbd/info"/>
 
-  <node pkg="ccny_rgbd" type="keyframe_sendoer" name="keyframe_sender">
+  <node pkg="ccny_rgbd" type="keyframe_sender" name="keyframe_sender">
     <!-- Incomming -->
     <remap from="/rgbd/depth" to="$(arg in_depth)"/>
     <remap from="/rgbd/rgb" to="$(arg in_rgb)"/>
