@@ -33,6 +33,14 @@ find_package(octomap REQUIRED)
 include_directories(${OCTOMAP_INCLUDE_DIRS})
 link_directories(${OCTOMAP_LIBRARY_DIRS})
 link_libraries(${OCTOMAP_LIBRARIES})
+
+# TBB
+# TBB will be removed later
+# find_package(tbb REQUIRED)
+# include_directories(${TBB_INCLUDE_DIRS})
+# link_directories(${TBB_LIBRARY_DIRS})
+# link_libraries(${TBB_LIBRARES})
+
                                              
                                              
 #g2o
@@ -50,11 +58,13 @@ rosbuild_add_boost_directories()
 
 rosbuild_add_library(keyframe_livemapper
     src/apps/keyframe_livemapper.cpp
+    src/apps/rgbdtools.cpp
 )
 
 target_link_libraries(keyframe_livemapper
     rgbdtools
     ${OpenCV_LIBRARIES}
+    tbb
 )
 
 rosbuild_add_executable(keyframe_livemapper_node

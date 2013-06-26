@@ -18,7 +18,10 @@
   <depend package="ccny_rgbd"/>
   <depend package="octomap_msgs"/>
   <depend package="octomap_ros"/>
+  <depend package="cv_bridge"/>
+  <depend package="opencv2"/>
   <rosdep name="octomap" />
+  <rosdep name="libtbb-dev" />
 
 </package>
 

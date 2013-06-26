@@ -10,7 +10,6 @@ namespace turtlebot_rgbdslam {
     : _n(nh), _priv_n(nh_private), _rgbd_frame_index(0)
   {
     initParams();
-    initGraphDetector();
     initFilter();
 
     setPublishers();
@@ -62,22 +61,11 @@ namespace turtlebot_rgbdslam {
     _priv_n.param<int>("graph/n_candidates",_graph_n_candidates,15);
     _priv_n.param<int>("graph/k_nearest_neighbors",_graph_k_nearest_neighbors,4);
     _priv_n.param<bool>("graph_matcher_use_desc_ratio_test",_graph_matcher_use_desc_ratio_test,true);
+    _priv_n.param<double>("graph_matcher_max_desc_ratio",_graph_matcher_max_desc_ratio,0.75);
+    _priv_n.param<double>("graph_matcher_max_desc_dist",_graph_matcher_max_desc_dist,0.5);
     _priv_n.param<std::string>("graph_output_path",_graph_output_path,"~/mapping_debug");
 
     _map_to_odom.setIdentity();
-  }
-
-  void KeyframeLiveMapper::initGraphDetector() 
-  {
-    _graph_detector.setNKeypoints(_graph_n_keypoints);
-    _graph_detector.setNCandidates(_graph_n_candidates);   
-    _graph_detector.setKNearestNeighbors(_graph_k_nearest_neighbors);    
-    _graph_detector.setMatcherUseDescRatioTest(_graph_matcher_use_desc_ratio_test);
-    
-    _graph_detector.setSACReestimateTf(false);
-    _graph_detector.setSACSaveResults(true);
-    _graph_detector.setVerbose(_verbose);
-    _graph_detector.setOutputPath(_graph_output_path);
   }
 
   void KeyframeLiveMapper::initFilter()
@@ -145,41 +133,24 @@ namespace turtlebot_rgbdslam {
     if(result) addKeyframe(frame, pose); 
   }
 
-  bool KeyframeLiveMapper::processFrame(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose)
+  bool KeyframeLiveMapper::processFrame(rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose)
   {
-    bool result;      // determine if a new keyframe is needed
-    geometry_msgs::PoseStamped frame_pose;   // add the frame pose to the path vector
-    tf::Transform frame_tf;
+    bool result=false;      // determine if a new keyframe is needed
+
+//    _graph_detector->prepareFeaturesForRANSAC
+    rgbdtools::RGBDKeyframe keyframe(frame);
+    prepareFeaturesForRANSAC(keyframe);
+    prepareMatcher(keyframe);
+
+    // What would these two do?
+    // buildMatchMatrixSurfTree();
+    // buildCandidateMatrixSurfTree();
+
+    buildCorrespondenceMatrix(keyframe,_keyframes,_associations);
+
+
     
-    frame_tf = ccny_rgbd::tfFromEigenAffine(pose);
-    tf::poseTFToMsg(frame_tf, frame_pose.pose);
 
-    // update the header of the pose for the path
-    frame_pose.header.frame_id      = _fixed_frame;
-    frame_pose.header.seq           = frame.header.seq;
-    frame_pose.header.stamp.sec     = frame.header.stamp.sec;
-    frame_pose.header.stamp.nsec    = frame.header.stamp.nsec;
-
-//    _path_msg.poses.push_back(frame_pose);
-    
-    if(_keyframes.empty())
-    {
-      result = true;
-    }
-    else {
-      double dist, angle;
-
-      ccny_rgbd::getTfDifference(ccny_rgbd::tfFromEigenAffine(pose),ccny_rgbd::tfFromEigenAffine(_keyframes.back().pose),dist,angle);
-      
-      if(dist > _kf_dist_eps || angle > _kf_angle_eps)
-      {
-        result = true;
-      }
-      else 
-      {
-        result = false;
-      }
-    }
     return result;
   }
 
@@ -205,13 +176,12 @@ namespace turtlebot_rgbdslam {
 
   void KeyframeLiveMapper::updateOctomap()
   {
-    double elapse;
+//    double elapse;
     ROS_INFO("Initialising update octomap thread");
 
     while(ros::ok() && !(_stop_thread)) {
 
-      if(_keyframes.size() > 15) {
-      
+      /*
         elapse = generateAndSolveGraph();
 
         ROS_INFO("Graph solve took %.2f",elapse);
@@ -224,8 +194,7 @@ namespace turtlebot_rgbdslam {
         else {
           ROS_WARN("no color octomap is not implemented");
         }
-      }
-
+*/
       ros::Duration(1).sleep();
     }
   }
@@ -237,9 +206,13 @@ namespace turtlebot_rgbdslam {
     
     begin = ros::Time::now(); 
     _associations.clear();
-    _graph_detector.generateKeyframeAssociations(_keyframes,_associations);
-    _graph_solver.solve(_keyframes,_associations);
+    ROS_INFO("Generating Keyframe Association");
+//    _graph_detector.generateKeyframeAssociations(_keyframes,_associations);
+
+    ROS_INFO("Solving the graph");
+//    _graph_solver.solve(_keyframes,_associations);
     end = ros::Time::now();
+    ROS_INFO("Done");
 
     double elapse = (end.toNSec() - begin.toNSec()) * 0.000001;
     return elapse;

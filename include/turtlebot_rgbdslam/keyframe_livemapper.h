@@ -22,7 +22,10 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
+#include <opencv2/nonfree/features2d.hpp>
 #include <rgbdtools/rgbdtools.h>
+#include <tbb/concurrent_vector.h>
+
 #include <ccny_rgbd/util.h>
 
 #include <octomap_msgs/Octomap.h>
@@ -41,7 +44,9 @@ namespace turtlebot_rgbdslam {
    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> RGBDSyncPolicy3;
    typedef message_filters::Synchronizer<RGBDSyncPolicy3> RGBDSynchronizer3;
 
+   typedef pcl::PointXYZ    PointXYZ;
    typedef pcl::PointXYZRGB PointXYZRGB;
+   typedef pcl::PointCloud<PointXYZ>     PointCloudXYZ;
    typedef pcl::PointCloud<PointXYZRGB> PointCloudXYZRGB;
 
   class KeyframeLiveMapper {
@@ -53,12 +58,18 @@ namespace turtlebot_rgbdslam {
       void processRGBDMsg(const sensor_msgs::Image::ConstPtr& rgb_msg,const sensor_msgs::Image::ConstPtr& depth_msg,const sensor_msgs::CameraInfo::ConstPtr& camera_info_msg);
 
       void initParams();
-      void initGraphDetector(); 
+      void initRGBDParams();
       void initFilter();
       void setSubscribers();
       void setPublishers();
 
-      bool processFrame(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose);
+      bool processFrame(rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose);
+        void prepareFeaturesForRANSAC(rgbdtools::RGBDKeyframe& keyframe);
+        void prepareMatcher(rgbdtools::RGBDKeyframe& keyframe);
+        void buildCorrespondenceMatrix(rgbdtools::RGBDKeyframe& keyframe,tbb::concurrent_vector<rgbdtools::RGBDKeyframe>& keyframes,tbb::concurrent_vector<rgbdtools::KeyframeAssociation>& associations);
+          int pairwiseMatchingRANSAC(const rgbdtools::RGBDKeyframe& query,const rgbdtools::RGBDKeyframe& train,rgbdtools::DMatchVector& best_inlier_matches,Eigen::Matrix4f& best_transformation);
+          void getCandidateMatches(const rgbdtools::RGBDKeyframe& query,const rgbdtools::RGBDKeyframe& train, rgbdtools::DMatchVector& candidate_matches);
+        
       void addKeyframe(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose);
 
       void publishMapTransform();
@@ -85,14 +96,15 @@ namespace turtlebot_rgbdslam {
 
       rgbdtools::KeyframeGraphDetector                      _graph_detector;
       rgbdtools::KeyframeGraphSolverG2O                     _graph_solver;
-      rgbdtools::KeyframeAssociationVector                  _associations;        
 
       tf::Transform             _map_to_odom;
       tf::TransformListener     _tf_listener;
       tf::TransformBroadcaster  _tf_broadcaster;
 
       nav_msgs::Path            _path_msg;
-      rgbdtools::KeyframeVector _keyframes;
+
+      tbb::concurrent_vector<rgbdtools::RGBDKeyframe>             _keyframes;
+      tbb::concurrent_vector<rgbdtools::KeyframeAssociation>  _associations;        
 
       //// parameters
       bool          _verbose;
@@ -121,7 +133,11 @@ namespace turtlebot_rgbdslam {
       int _graph_n_keypoints;
       int _graph_n_candidates;
       int _graph_k_nearest_neighbors;
+
       bool _graph_matcher_use_desc_ratio_test;
+      double _graph_matcher_max_desc_ratio;
+      double _graph_matcher_max_desc_dist;
+
       std::string _graph_output_path;
 
       boost::shared_ptr<RGBDSynchronizer3> _sync;
@@ -130,6 +146,16 @@ namespace turtlebot_rgbdslam {
       bool                                _stop_thread;
 
       pcl::PassThrough<PointXYZRGB>     _pass;
+
+      // RANSAC params
+      double          _sac_min_inliers;                
+      double          _sac_max_eucl_dist_sq;
+      double          _sac_reestimate_tf;          
+
+      double          _ransac_confidence;             
+      unsigned int    _ransac_max_iterations;
+      double          _ransac_sufficient_inlier_ratio;
+      double          _log_one_minus_ransac_confidence;
   };
 }
 
