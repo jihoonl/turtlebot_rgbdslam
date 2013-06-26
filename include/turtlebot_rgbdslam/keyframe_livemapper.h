@@ -63,12 +63,12 @@ namespace turtlebot_rgbdslam {
       void setSubscribers();
       void setPublishers();
 
-      bool processFrame(rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose);
+      rgbdtools::RGBDKeyframe processFrame(rgbdtools::RGBDFrame& frame);
         void prepareFeaturesForRANSAC(rgbdtools::RGBDKeyframe& keyframe);
         void prepareMatcher(rgbdtools::RGBDKeyframe& keyframe);
-        void buildCorrespondenceMatrix(rgbdtools::RGBDKeyframe& keyframe,tbb::concurrent_vector<rgbdtools::RGBDKeyframe>& keyframes,tbb::concurrent_vector<rgbdtools::KeyframeAssociation>& associations);
-          int pairwiseMatchingRANSAC(const rgbdtools::RGBDKeyframe& query,const rgbdtools::RGBDKeyframe& train,rgbdtools::DMatchVector& best_inlier_matches,Eigen::Matrix4f& best_transformation);
-          void getCandidateMatches(const rgbdtools::RGBDKeyframe& query,const rgbdtools::RGBDKeyframe& train, rgbdtools::DMatchVector& candidate_matches);
+      void buildCorrespondenceMatrix(rgbdtools::RGBDKeyframe& keyframe,tbb::concurrent_vector<rgbdtools::RGBDKeyframe>& keyframes,tbb::concurrent_vector<rgbdtools::KeyframeAssociation>& associations);
+        int pairwiseMatchingRANSAC(const rgbdtools::RGBDKeyframe& query,const rgbdtools::RGBDKeyframe& train,rgbdtools::DMatchVector& best_inlier_matches,Eigen::Matrix4f& best_transformation);
+        void getCandidateMatches(const rgbdtools::RGBDKeyframe& query,const rgbdtools::RGBDKeyframe& train, rgbdtools::DMatchVector& candidate_matches);
         
       void addKeyframe(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose);
 
@@ -153,7 +153,7 @@ namespace turtlebot_rgbdslam {
       double          _sac_reestimate_tf;          
 
       double          _ransac_confidence;             
-      unsigned int    _ransac_max_iterations;
+      int             _ransac_max_iterations;
       double          _ransac_sufficient_inlier_ratio;
       double          _log_one_minus_ransac_confidence;
   };

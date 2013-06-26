@@ -194,7 +194,7 @@ namespace turtlebot_rgbdslam {
       // ** termination : iterations + inlier ratio
       if(best_inlier_matches.size() < _sac_min_inliers)
       {
-        if(iteration >= (unsigned int) _ransac_max_iterations) break;
+        if(iteration >= _ransac_max_iterations) break;
       }
       else 
       {

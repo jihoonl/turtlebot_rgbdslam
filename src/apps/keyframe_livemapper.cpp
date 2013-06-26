@@ -106,8 +106,6 @@ namespace turtlebot_rgbdslam {
     // create a new frame and increment the counter
     rgbdtools::RGBDFrame frame;
     Eigen::Affine3f pose;
-    bool result;
-
     const ros::Time& time = rgb_msg->header.stamp;
 
     try {
@@ -122,22 +120,21 @@ namespace turtlebot_rgbdslam {
 
     // create RGBD data from ROS msgs
     ccny_rgbd::createRGBDFrameFromROSMessages(rgb_msg,depth_msg, info_msg, frame);
-    frame.index = _rgbd_frame_index;
-    _rgbd_frame_index++;
+    frame.index = _rgbd_frame_index++;
+    rgbdtools::RGBDKeyframe keyframe;
 
     // affine transform from tf msg
     pose = ccny_rgbd::eigenAffineFromTf(transform);
 
-    result = processFrame(frame, pose);
-    ROS_INFO("[RGBDSLAM] processing : %s",result?"SUCCESS":"FAILED");
-    if(result) addKeyframe(frame, pose); 
+    keyframe = processFrame(frame);
+    buildCorrespondenceMatrix(keyframe,_keyframes,_associations);
+
+    ROS_INFO_STREAM("Finished processing frame " << _keyframes.size() << " " << _associations.size() << std::endl);
+    //ROS_INFO("[RGBDSLAM] processing : %s",result?"SUCCESS":"FAILED");
   }
 
-  bool KeyframeLiveMapper::processFrame(rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose)
+  rgbdtools::RGBDKeyframe KeyframeLiveMapper::processFrame(rgbdtools::RGBDFrame& frame)
   {
-    bool result=false;      // determine if a new keyframe is needed
-
-//    _graph_detector->prepareFeaturesForRANSAC
     rgbdtools::RGBDKeyframe keyframe(frame);
     prepareFeaturesForRANSAC(keyframe);
     prepareMatcher(keyframe);
@@ -145,13 +142,8 @@ namespace turtlebot_rgbdslam {
     // What would these two do?
     // buildMatchMatrixSurfTree();
     // buildCandidateMatrixSurfTree();
-
-    buildCorrespondenceMatrix(keyframe,_keyframes,_associations);
-
-
     
-
-    return result;
+    return keyframe;
   }
 
   void KeyframeLiveMapper::addKeyframe(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose)
