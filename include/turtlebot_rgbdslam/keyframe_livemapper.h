@@ -36,6 +36,13 @@
 #include <octomap/OcTree.h>
 #include <octomap/ColorOcTree.h>
 
+#include <g2o/core/graph_optimizer_sparse.h>
+#include <g2o/core/block_solver.h>
+#include <g2o/solvers/cholmod/linear_solver_cholmod.h>
+#include <g2o/types/slam3d/types_six_dof_quat.h>
+
+#include <boost/thread.hpp>
+
 namespace turtlebot_rgbdslam {
   /** @brief Builds a 3D map from a series of RGBD keyframes.
 
@@ -59,6 +66,7 @@ namespace turtlebot_rgbdslam {
 
       void initParams();
       void initRGBDParams();
+      void initSolover();
       void initFilter();
       void setSubscribers();
       void setPublishers();
@@ -70,19 +78,33 @@ namespace turtlebot_rgbdslam {
         int pairwiseMatchingRANSAC(const rgbdtools::RGBDKeyframe& query,const rgbdtools::RGBDKeyframe& train,rgbdtools::DMatchVector& best_inlier_matches,Eigen::Matrix4f& best_transformation);
         void getCandidateMatches(const rgbdtools::RGBDKeyframe& query,const rgbdtools::RGBDKeyframe& train, rgbdtools::DMatchVector& candidate_matches);
         
-      void addKeyframe(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose);
-
       void publishMapTransform();
 
       void updateOctomap();
-      double generateAndSolveGraph();
-      void buildColorOctomap(octomap::ColorOcTree& tree);
+        void addVertexToOptimizer(Eigen::Affine3f& vertex_pose, int i);
+          void generateG2OQuat(g2o::SE3Quat& pose,Eigen::Affine3f& affine_pose);
+          void addToOptimizer(g2o::SE3Quat& pose, int index);
+        void addEdgeTopOptimizer(rgbdtools::KeyframeAssociation& association);
+          void addToOptimizer(g2o::SE3Quat& pose,int from,int to);
+        void optimizeGraph();
+
+      double solveGraph(int current_keyframes_size,int current_associations_size);
+
+      void updateKeyframe(int current_keyframes_size);
+        void getOptimizedPose(Eigen::Affine3f& pose,int index);
+      
+      void buildColorOctomap(octomap::ColorOcTree& tree,int current_keyframes_size);
+        void getSensorOrigin(octomap::point3d& sensor_origin);
         void buildOctoCloud(octomap::Pointcloud& octomap_cloud,const PointCloudXYZRGB& cloud);
         void insertColor(octomap::ColorOcTree& tree,const PointCloudXYZRGB& cloud,const Eigen::Affine3f pose);
         void publishOctomap(octomap::ColorOcTree& tree);
-//      octomap::pose6d poseTfToOctomap(tf::Pose pose_tf);
+
+
 
     private:
+
+
+
       ros::NodeHandle _n;
       ros::NodeHandle _priv_n;
         
@@ -143,12 +165,14 @@ namespace turtlebot_rgbdslam {
       boost::shared_ptr<RGBDSynchronizer3> _sync;
       boost::thread                       _thread_map_to_odom;
       boost::thread                       _thread_octomap;
+      boost::mutex _mutex_map_to_odom;
+      boost::mutex _mutex_keyframe;
       bool                                _stop_thread;
 
       pcl::PassThrough<PointXYZRGB>     _pass;
 
       // RANSAC params
-      double          _sac_min_inliers;                
+      double          _sac_min_inliers; 
       double          _sac_max_eucl_dist_sq;
       double          _sac_reestimate_tf;          
 
@@ -156,6 +180,10 @@ namespace turtlebot_rgbdslam {
       int             _ransac_max_iterations;
       double          _ransac_sufficient_inlier_ratio;
       double          _log_one_minus_ransac_confidence;
+
+      g2o::SparseOptimizer                  _optimizer;
+      g2o::BlockSolverX::LinearSolverType   *_linear_solver;
+      g2o::BlockSolverX                     *_solver_ptr;
   };
 }
 

@@ -61,7 +61,6 @@ namespace turtlebot_rgbdslam {
     keyframe.matcher->train();
   }
 
- // void KeyframeLiveMapper::buildCorrespondenceMatrix(rgbdtools::RGBDKeyframe& keyframe,rgbdtools::KeyframeVector& keyframes,rgbdtools::KeyframeAssociationVector& associations)
   void KeyframeLiveMapper::buildCorrespondenceMatrix(rgbdtools::RGBDKeyframe& keyframe,tbb::concurrent_vector<rgbdtools::RGBDKeyframe>& keyframes,tbb::concurrent_vector<rgbdtools::KeyframeAssociation>& associations)
   {
     tbb::concurrent_vector<rgbdtools::RGBDKeyframe>::iterator current_keyframe_it, it;
@@ -207,7 +206,6 @@ namespace turtlebot_rgbdslam {
     }
     
     return iteration;
-
   }
 
   void KeyframeLiveMapper::getCandidateMatches(const rgbdtools::RGBDKeyframe& query,const rgbdtools::RGBDKeyframe& train, rgbdtools::DMatchVector& candidate_matches)

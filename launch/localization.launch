@@ -1,0 +1,8 @@
+<launch>
+  <node pkg="humanoid_localization" type="localization_node" name="hmcl" output="screen">
+    <remap from="point_cloud" to="/camera/depth_registered/remote_points"/>
+    <param name="odom_frame_id" value="odom"/>
+    <param name="base_frame_id" value="base_footprint"/>
+    <param name="init_global" value="false"/>
+  </node>
+</launch>

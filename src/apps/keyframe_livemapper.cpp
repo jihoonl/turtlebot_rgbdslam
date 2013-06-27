@@ -68,12 +68,6 @@ namespace turtlebot_rgbdslam {
     _map_to_odom.setIdentity();
   }
 
-  void KeyframeLiveMapper::initFilter()
-  {
-    _pass.setFilterFieldName("z"); 
-    _pass.setFilterLimits(-std::numeric_limits<double>::infinity(), _max_map_z);
-  }
-
   void KeyframeLiveMapper::setPublishers()
   {
     _pub_octomap = _n.advertise<octomap_msgs::Octomap>("octomap_binary",1,true);
@@ -127,10 +121,12 @@ namespace turtlebot_rgbdslam {
     pose = ccny_rgbd::eigenAffineFromTf(transform);
 
     keyframe = processFrame(frame);
+
+    _mutex_keyframe.lock();
     buildCorrespondenceMatrix(keyframe,_keyframes,_associations);
+    _mutex_keyframe.unlock();
 
     ROS_INFO_STREAM("Finished processing frame " << _keyframes.size() << " " << _associations.size() << std::endl);
-    //ROS_INFO("[RGBDSLAM] processing : %s",result?"SUCCESS":"FAILED");
   }
 
   rgbdtools::RGBDKeyframe KeyframeLiveMapper::processFrame(rgbdtools::RGBDFrame& frame)
@@ -146,21 +142,15 @@ namespace turtlebot_rgbdslam {
     return keyframe;
   }
 
-  void KeyframeLiveMapper::addKeyframe(const rgbdtools::RGBDFrame& frame, const Eigen::Affine3f& pose)
-  {
-    rgbdtools::RGBDKeyframe keyframe(frame);
-    keyframe.pose = pose;
-    
-    _keyframes.push_back(keyframe);
-  }
-
   void KeyframeLiveMapper::publishMapTransform() 
   {
     ROS_INFO("Initialized map to odom transform sender");
     ros::Rate r(10);
 
     while(ros::ok() && !(_stop_thread)) {
+      boost::mutex::scoped_lock(_mutex_map_to_odom);
       tf::StampedTransform transform_msg(_map_to_odom, ros::Time::now(), _fixed_frame, _odom_frame);
+
       _tf_broadcaster.sendTransform(transform_msg);
       r.sleep();
     }
@@ -168,41 +158,68 @@ namespace turtlebot_rgbdslam {
 
   void KeyframeLiveMapper::updateOctomap()
   {
-//    double elapse;
+    int current_keyframes_size;
+    int current_associations_size;
+    //double elapse;
+    rgbdtools::Pose pose_before_optimization;
+    rgbdtools::Pose pose_after_optimization;
+
     ROS_INFO("Initialising update octomap thread");
 
     while(ros::ok() && !(_stop_thread)) {
+      boost::mutex::scoped_lock(_mutex_keyframe);
 
-      /*
-        elapse = generateAndSolveGraph();
+      current_keyframes_size   = _keyframes.size();
+      current_associations_size = _associations.size();
+      pose_before_optimization = _keyframes[current_keyframes_size-1].pose;
 
-        ROS_INFO("Graph solve took %.2f",elapse);
+      //elapse = solveGraph(current_keyframes_size,current_associations_size);
+      solveGraph(current_keyframes_size,current_associations_size);
 
-        if(_octomap_with_color) {
-          octomap::ColorOcTree tree(_octomap_res);
-          buildColorOctomap(tree);
-          publishOctomap(tree);
-        }
-        else {
-          ROS_WARN("no color octomap is not implemented");
-        }
-*/
+      // updating keyframes
+      _mutex_keyframe.lock();
+      updateKeyframe(current_keyframes_size);
+      _mutex_keyframe.unlock();
+
+      pose_after_optimization = _keyframes[current_keyframes_size-1].pose;
+
+      // update map to odom 
+      _mutex_map_to_odom.lock();
+      _map_to_odom = ccny_rgbd::tfFromEigenAffine(pose_after_optimization * pose_before_optimization.inverse() * ccny_rgbd::eigenAffineFromTf(_map_to_odom));
+      _mutex_map_to_odom.unlock();
+
+      // build octomap
+      octomap::ColorOcTree tree(_octomap_res);
+
+      buildColorOctomap(tree,current_keyframes_size);
+      publishOctomap(tree);
+
+
       ros::Duration(1).sleep();
     }
   }
 
-  double KeyframeLiveMapper::generateAndSolveGraph()
+  double KeyframeLiveMapper::solveGraph(int current_keyframes_size,int current_associations_size)
   {
+    int i;
     ros::Time begin;
     ros::Time end; 
     
     begin = ros::Time::now(); 
-    _associations.clear();
-    ROS_INFO("Generating Keyframe Association");
-//    _graph_detector.generateKeyframeAssociations(_keyframes,_associations);
+    // adding verticies
+    for(i = 0; i < current_keyframes_size; i++) {
+      addVertexToOptimizer(_keyframes[i].pose,i);
+    }
 
-    ROS_INFO("Solving the graph");
-//    _graph_solver.solve(_keyframes,_associations);
+    // adding ransac edges
+    for(i = 0; i < current_associations_size; i++) {
+      if(_associations[i].type != rgbdtools::KeyframeAssociation::RANSAC)
+        addEdgeTopOptimizer(_associations[i]);
+    }
+
+    // Optimization
+    optimizeGraph();
+
     end = ros::Time::now();
     ROS_INFO("Done");
 
@@ -210,95 +227,16 @@ namespace turtlebot_rgbdslam {
     return elapse;
   }
 
-  void KeyframeLiveMapper::buildColorOctomap(octomap::ColorOcTree& tree)
+  void KeyframeLiveMapper::updateKeyframe(int current_keyframes_size)
   {
-    octomap::point3d sensor_origin(0.0,0.0,0.0);
-
-    for(unsigned int kf_idx = 0; kf_idx < _keyframes.size(); kf_idx++)
+    
+    for(int i = 0; i < current_keyframes_size; i ++)
     {
-      const rgbdtools::RGBDKeyframe& keyframe = _keyframes[kf_idx];
-      PointCloudXYZRGB::Ptr cloud_unf(new PointCloudXYZRGB());
-      PointCloudXYZRGB cloud;
-      octomap::pose6d frame_origin;
+      Eigen::Affine3f pose;
 
-      // construct the pointcloud
-      keyframe.constructDensePointCloud(*cloud_unf,_max_range,_max_stddev);
-
-      // perform filtering for max z
-      _pass.setInputCloud(cloud_unf);
-      _pass.filter(cloud);
-      pcl::transformPointCloud(cloud, cloud, keyframe.pose.inverse());
-
-      frame_origin = octomap::poseTfToOctomap(ccny_rgbd::tfFromEigenAffine(keyframe.pose));
-
-      octomap::Pointcloud octomap_cloud;
-
-      // build octomap cloud from pcl cloud
-      buildOctoCloud(octomap_cloud,cloud);
-
-      // insert scan (only xyz)
-      tree.insertScan(octomap_cloud, sensor_origin, frame_origin);
-
-      // insert colors
-      insertColor(tree,cloud,keyframe.pose);
-      
-      tree.updateInnerOccupancy();
-
+      getOptimizedPose(pose,i); 
+      _keyframes[i].pose = pose;
     }
   }
-
-  void KeyframeLiveMapper::buildOctoCloud(octomap::Pointcloud& octomap_cloud,const PointCloudXYZRGB& cloud)
-  {
-    for(unsigned int pt_idx = 0; pt_idx < cloud.points.size(); ++pt_idx)
-    {
-      const PointXYZRGB& p = cloud.points[pt_idx];
-      if(!std::isnan(p.z)) octomap_cloud.push_back(p.x,p.y,p.z);
-    }
-  }
-
-  void KeyframeLiveMapper::insertColor(octomap::ColorOcTree& tree,const PointCloudXYZRGB& cloud,const Eigen::Affine3f pose)
-  {
-    PointCloudXYZRGB cloud_tf;;
-    pcl::transformPointCloud(cloud,cloud_tf, pose);
-    for(unsigned int i = 0; i < cloud_tf.points.size(); i++)
-    {
-      const PointXYZRGB& p = cloud_tf.points[i];
-      if(!std::isnan(p.z))
-      {
-        octomap::point3d endpoint(p.x,p.y,p.z);
-        octomap::ColorOcTreeNode* n = tree.search(endpoint);
-        if (n) n->setColor(p.r,p.g,p.b);
-      }
-    }
-  }
-
-  void KeyframeLiveMapper::publishOctomap(octomap::ColorOcTree& tree)
-  {
-    octomap_msgs::Octomap map; 
-    map.header.frame_id = _fixed_frame;
-    map.header.stamp    = ros::Time::now();
-
-    if(octomap_msgs::binaryMapToMsg(tree,map))
-    {
-      _pub_octomap.publish(map);
-    }
-    else
-    {
-      ROS_ERROR("[RGBDSLAM] Error serializing octomap");
-    }
-  }
-
-
-  /*
-  octomap::pose6d KeyframeLiveMapper::poseTfToOctomap(tf::Pose pose_tf)
-  {
-    tf::Point& point_tf = pose_tf.getOrigin();
-    tf::Quaternion quat_tf = pose_tf.getRotation();
-
-    octomap::point3d point(point_tf.x(),point_tf.y(),point_tf.z());
-    octomath::Quaternion quat(quat_tf.w(),quat_tf.x(),quat_tf.y(),quat_tf.z());
-
-    return octomap::pose6d(point,quat);
-  }*/
 
 }

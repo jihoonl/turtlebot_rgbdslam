@@ -34,6 +34,13 @@ include_directories(${OCTOMAP_INCLUDE_DIRS})
 link_directories(${OCTOMAP_LIBRARY_DIRS})
 link_libraries(${OCTOMAP_LIBRARIES})
 
+#g2o
+#find_package(libg2o REQUIRED)
+#include_directories(${libg2o_INCLUDE_DIRS})
+#link_directories(${libg2o_LIBRARY_DIRS})
+#link_libraries(${libg2o_LIBRARIES})
+
+
 # TBB
 # TBB will be removed later
 # find_package(tbb REQUIRED)
@@ -44,21 +51,23 @@ link_libraries(${OCTOMAP_LIBRARIES})
                                              
                                              
 #g2o
-set(G2O_LIBRARIES 
-    g2o_core 
-    g2o_stuff
-    g2o_solver_cholmod 
-    g2o_solver_csparse 
-    g2o_types_slam3d
-    cholmod
-)
+#set(G2O_LIBRARIES 
+#    g2o_core 
+#    g2o_stuff
+#    g2o_solver_cholmod 
+#    g2o_solver_csparse 
+#    g2o_types_slam3d
+#    cholmod
+#)
 
 # boost
 rosbuild_add_boost_directories()
 
 rosbuild_add_library(keyframe_livemapper
     src/apps/keyframe_livemapper.cpp
-    src/apps/rgbdtools.cpp
+    src/apps/rgbdtools_graph_detector.cpp
+    src/apps/rgbdtools_graph_solver.cpp
+    src/apps/octomap_handler.cpp
 )
 
 target_link_libraries(keyframe_livemapper
