@@ -1,7 +1,21 @@
 <launch>
+  <arg name="unwarp" default="false"/> 
+  <arg name="scale" default="1.0"/> 
 
-  <!-- Uses ccny custom version of openni launcher -->
-<!--  <include file="$(find turtlebot_rgbdslam)/launch/include/openni.launch"/>-->
+  <include file="$(find turtlebot_bringup)/launch/3dsensor.launch"/>
+
+  <node pkg="nodelet" type="nodelet" name="rgbd_image_proc"
+        args="load ccny_rgbd/RGBDImageProcNodelet $(arg manager_name)"
+        output="log">
+    
+    <!-- Resample by a factor of 2-->
+    <param name="scale" value="$(arg scale)"/>
+    <param name="unwarp" value="$(arg unwarp)"/>
+    <param name="publish_cloud" value="$(arg publish_cloud)"/>
+    <param name="calib_path" value="$(arg calib_path)"/>
+    <param name="verbose" value="$(arg verbose)"/>
+  </node> 
+
 
   <!-- Keyframe Sender --> 
   <include file="$(find turtlebot_rgbdslam)/launch/include/keyframe_sender.launch">
