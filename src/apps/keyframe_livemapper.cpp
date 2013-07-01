@@ -65,6 +65,8 @@ namespace turtlebot_rgbdslam {
     _priv_n.param<double>("graph_matcher_max_desc_dist",_graph_matcher_max_desc_dist,0.5);
     _priv_n.param<std::string>("graph_output_path",_graph_output_path,"~/mapping_debug");
 
+    _priv_n.param<int>("keyframe_size",_keyframesize,1); 
+
     _map_to_odom.setIdentity();
   }
 
@@ -171,30 +173,32 @@ namespace turtlebot_rgbdslam {
 
       current_keyframes_size   = _keyframes.size();
       current_associations_size = _associations.size();
-      pose_before_optimization = _keyframes[current_keyframes_size-1].pose;
+      
+      if(current_keyframes_size > _keyframesize) {
+        pose_before_optimization = _keyframes[current_keyframes_size-1].pose;
 
-      //elapse = solveGraph(current_keyframes_size,current_associations_size);
-      solveGraph(current_keyframes_size,current_associations_size);
+        //elapse = solveGraph(current_keyframes_size,current_associations_size);
+        solveGraph(current_keyframes_size,current_associations_size);
 
-      // updating keyframes
-      _mutex_keyframe.lock();
-      updateKeyframe(current_keyframes_size);
-      _mutex_keyframe.unlock();
+        // updating keyframes
+        _mutex_keyframe.lock();
+        updateKeyframe(current_keyframes_size);
+        _mutex_keyframe.unlock();
 
-      pose_after_optimization = _keyframes[current_keyframes_size-1].pose;
+        pose_after_optimization = _keyframes[current_keyframes_size-1].pose;
 
-      // update map to odom 
-      _mutex_map_to_odom.lock();
-      _map_to_odom = ccny_rgbd::tfFromEigenAffine(pose_after_optimization * pose_before_optimization.inverse() * ccny_rgbd::eigenAffineFromTf(_map_to_odom));
-      _mutex_map_to_odom.unlock();
+        // update map to odom 
+        _mutex_map_to_odom.lock();
+        _map_to_odom = ccny_rgbd::tfFromEigenAffine(pose_after_optimization * pose_before_optimization.inverse() * ccny_rgbd::eigenAffineFromTf(_map_to_odom));
+        _mutex_map_to_odom.unlock();
 
-      // build octomap
-      octomap::ColorOcTree tree(_octomap_res);
+        // build octomap
+        octomap::ColorOcTree tree(_octomap_res);
 
-      buildColorOctomap(tree,current_keyframes_size);
-      publishOctomap(tree);
+        buildColorOctomap(tree,current_keyframes_size);
+        publishOctomap(tree);
 
-
+      }
       ros::Duration(1).sleep();
     }
   }
@@ -207,17 +211,20 @@ namespace turtlebot_rgbdslam {
     
     begin = ros::Time::now(); 
     // adding verticies
+    ROS_INFO("Adding Verticies");
     for(i = 0; i < current_keyframes_size; i++) {
       addVertexToOptimizer(_keyframes[i].pose,i);
     }
 
     // adding ransac edges
+    ROS_INFO("Adding edges");
     for(i = 0; i < current_associations_size; i++) {
       if(_associations[i].type != rgbdtools::KeyframeAssociation::RANSAC)
         addEdgeTopOptimizer(_associations[i]);
     }
 
     // Optimization
+    ROS_INFO("Optimize Graph");
     optimizeGraph();
 
     end = ros::Time::now();

@@ -5,7 +5,7 @@
   <include file="$(find turtlebot_bringup)/launch/3dsensor.launch"/>
 
   <node pkg="nodelet" type="nodelet" name="rgbd_image_proc"
-        args="load ccny_rgbd/RGBDImageProcNodelet $(arg manager_name)"
+        args="load ccny_rgbd/RGBDImageProcNodelet $(arg camera)/manager"
         output="log">
     
     <!-- Resample by a factor of 2-->

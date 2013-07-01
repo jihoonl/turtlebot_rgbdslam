@@ -2,8 +2,8 @@
 <launch>
 
   <!-- It maps with outgoing data at robot.launch -->
-  <arg name="in_depth"       default="keyframes/depth/compressedDepth"/>
-  <arg name="in_rgb"         default="keyframes/rgb/compressed"/>
+  <arg name="in_depth"       default="keyframes/depth"/>
+  <arg name="in_rgb"         default="keyframes/rgb"/>
   <arg name="in_camera_info" default="keyframes/camera_info"/>
 
 

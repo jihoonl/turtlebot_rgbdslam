@@ -11,8 +11,8 @@
     ccny_rgbd/rgbd_image_proc"), then add the following remappings. 
     Also add these to visual_odometry in visual_odometry.launch.
   -->
-    <remap from="rgbd/depth/compressedDepth" to="$(arg in_depth)"/>
-    <remap from="rgbd/rgb/compressed"   to="$(arg in_rgb)"/>
+    <remap from="rgbd/depth/$(arg depth_transporthint)" to="$(arg in_depth)/$(arg depth_transporthint)"/>
+    <remap from="rgbd/rgb/$(arg rgb_transporthint)"   to="$(arg in_rgb)/$(arg rgb_transporthint)"/>
     <remap from="rgbd/info"  to="$(arg in_camera_info)"/>
 
     <param name="rgb_transporthint" value="$(arg rgb_transporthint)"/>
@@ -22,6 +22,7 @@
     <param name="full_map_res" value="0.01"/>
     <param name="max_range" value="7.0"/>
     <param name="max_stdev" value="0.05"/>
+    <param name="keyframe_size" value="3"/>
   </node>
 
 </launch>

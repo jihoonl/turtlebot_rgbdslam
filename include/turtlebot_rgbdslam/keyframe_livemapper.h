@@ -184,6 +184,8 @@ namespace turtlebot_rgbdslam {
       g2o::SparseOptimizer                  _optimizer;
       g2o::BlockSolverX::LinearSolverType   *_linear_solver;
       g2o::BlockSolverX                     *_solver_ptr;
+
+      int _keyframesize;
   };
 }
 

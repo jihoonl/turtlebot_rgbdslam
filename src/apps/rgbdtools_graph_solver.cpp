@@ -77,12 +77,14 @@ namespace turtlebot_rgbdslam {
   {
     double lambda = 0.01;
     int iteration = 20;
+    ROS_INFO("  Prepare Optmization ");
     // preparation
     _optimizer.initializeOptimization();
 
     // set the initial Levenberg-Marquardt lambda
     _optimizer.setUserLambdaInit(lambda);
 
+    ROS_INFO("  Run Optimization");
     // run optimization
     _optimizer.optimize(iteration);
   }
